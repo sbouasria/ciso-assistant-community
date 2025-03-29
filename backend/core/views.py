@@ -3797,7 +3797,13 @@ class EvidenceViewSet(BaseModelViewSet):
     """
 
     model = Evidence
-    filterset_fields = ["folder", "applied_controls", "requirement_assessments", "name"]
+    filterset_fields = [
+        "folder",
+        "applied_controls",
+        "requirement_assessments",
+        "name",
+        "timeline_entries",
+    ]
     search_fields = ["name"]
 
     @action(methods=["get"], detail=True)
@@ -3867,6 +3873,24 @@ class UploadAttachmentView(APIView):
             except Exception:
                 return Response(status=status.HTTP_400_BAD_REQUEST)
         return Response(status=status.HTTP_400_BAD_REQUEST)
+
+
+class QuickStartView(APIView):
+    serializer_class = QuickStartSerializer
+
+    def post(self, request):
+        serializer = self.serializer_class(
+            data=request.data, context={"request": request}
+        )
+        if not serializer.is_valid():
+            raise ValidationError(serializer.errors)
+        try:
+            objects = serializer.save()
+        except Exception as e:
+            logger.error(f"Error in QuickStartView: {e}")
+            raise
+        else:
+            return Response(objects, status=status.HTTP_201_CREATED)
 
 
 class QualificationViewSet(BaseModelViewSet):
@@ -4966,6 +4990,7 @@ class IncidentViewSet(BaseModelViewSet):
 class TimelineEntryViewSet(BaseModelViewSet):
     model = TimelineEntry
     filterset_fields = ["incident"]
+    search_fields = ["entry", "entry_type"]
     ordering = ["-timestamp"]
 
     @action(detail=False, name="Get entry type choices")
