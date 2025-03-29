@@ -209,6 +209,16 @@ class RiskAcceptanceReadSerializer(BaseModelSerializer):
 
 
 class PerimeterWriteSerializer(BaseModelSerializer):
+    def validate_name(self, value):
+        """
+        Check that the folder perimeter name does not contain the character "/"
+        """
+        if "/" in value:
+            raise serializers.ValidationError(
+                "The name cannot contain '/' for a Perimeter."
+            )
+        return value
+
     class Meta:
         model = Perimeter
         exclude = ["created_at"]
@@ -303,7 +313,7 @@ class AssetWriteSerializer(BaseModelSerializer):
 
     class Meta:
         model = Asset
-        fields = "__all__"
+        exclude = ["business_value"]
 
     def validate_parent_assets(self, parent_assets):
         """
@@ -346,7 +356,6 @@ class AssetImportExportSerializer(BaseModelSerializer):
             "type",
             "name",
             "description",
-            "business_value",
             "reference_link",
             "security_objectives",
             "disaster_recovery_objectives",
@@ -811,6 +820,16 @@ class FolderWriteSerializer(BaseModelSerializer):
             "content_type",
         ]
 
+    def validate_name(self, value):
+        """
+        Check that the folder name does not contain the character "/"
+        """
+        if "/" in value:
+            raise serializers.ValidationError(
+                "The name cannot contain '/' for a Folder."
+            )
+        return value
+
 
 class FolderReadSerializer(BaseModelSerializer):
     parent_folder = FieldsRelatedField()
@@ -1229,3 +1248,45 @@ class FindingReadSerializer(FindingWriteSerializer):
     class Meta:
         model = Finding
         fields = "__all__"
+
+
+class TimelineEntryWriteSerializer(BaseModelSerializer):
+    class Meta:
+        model = TimelineEntry
+        exclude = ["created_at", "updated_at"]
+
+
+class TimelineEntryReadSerializer(TimelineEntryWriteSerializer):
+    str = serializers.CharField(source="__str__", read_only=True)
+    author = FieldsRelatedField()
+    evidences = FieldsRelatedField(many=True)
+    folder = FieldsRelatedField()
+    incident = FieldsRelatedField()
+
+    class Meta:
+        model = TimelineEntry
+        fields = "__all__"
+
+
+class IncidentWriteSerializer(BaseModelSerializer):
+    class Meta:
+        model = Incident
+        exclude = ["created_at", "updated_at"]
+
+
+class IncidentReadSerializer(IncidentWriteSerializer):
+    threats = FieldsRelatedField(many=True)
+    owners = FieldsRelatedField(many=True)
+    assets = FieldsRelatedField(many=True)
+    qualifications = FieldsRelatedField(["name"], many=True)
+    severity = serializers.CharField(source="get_severity_display", read_only=True)
+    status = serializers.CharField(source="get_status_display", read_only=True)
+    folder = FieldsRelatedField()
+
+    class Meta:
+        model = Incident
+        fields = "__all__"
+
+    def get_timeline_entries(self, obj):
+        """Returns a serialized list of timeline entries related to the incident."""
+        return TimelineEntryReadSerializer(obj.timeline_entries.all(), many=True).data

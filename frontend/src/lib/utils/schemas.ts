@@ -1,5 +1,6 @@
 // schema for the validation of forms
 import { z, type AnyZodObject } from 'zod';
+import * as m from '$paraglide/messages';
 
 const toArrayPreprocessor = (value: unknown) => {
 	if (Array.isArray(value)) {
@@ -119,7 +120,6 @@ export const ThreatSchema = z.object({
 
 export const RiskScenarioSchema = z.object({
 	...NameDescriptionMixin,
-	existing_controls: z.string().optional(),
 	applied_controls: z.string().uuid().optional().array().optional(),
 	existing_applied_controls: z.string().uuid().optional().array().optional(),
 	current_proba: z.number().optional(),
@@ -420,6 +420,65 @@ export const vulnerabilitySchema = z.object({
 	filtering_labels: z.string().optional().array().optional()
 });
 
+export const processingSchema = z.object({
+	...NameDescriptionMixin,
+	folder: z.string(),
+	ref_id: z.string().optional().default(''),
+	filtering_labels: z.string().optional().array().optional(),
+	status: z.string().optional(),
+	legal_basis: z.string().optional(),
+	dpia_required: z.boolean().optional(),
+	has_sensitive_personal_data: z.boolean().optional(),
+	nature: z.string().optional().array().optional()
+});
+
+export const purposeSchema = z.object({
+	...NameDescriptionMixin,
+	ref_id: z.string().optional().default(''),
+	processing: z.string()
+});
+export const dataSubjectSchema = z.object({
+	...NameDescriptionMixin,
+	ref_id: z.string().optional().default(''),
+	category: z.string(),
+	processing: z.string()
+});
+export const dataRecipientSchema = z.object({
+	...NameDescriptionMixin,
+	ref_id: z.string().optional().default(''),
+	category: z.string(),
+	processing: z.string()
+});
+export const dataContractorSchema = z.object({
+	...NameDescriptionMixin,
+	ref_id: z.string().optional().default(''),
+	relationship_type: z.string(),
+	country: z.string(),
+	documentation_link: z.string().optional(),
+	processing: z.string(),
+	entity: z.string().optional()
+});
+export const dataTransferSchema = z.object({
+	...NameDescriptionMixin,
+	ref_id: z.string().optional().default(''),
+	country: z.string(),
+	documentation_link: z.string().optional(),
+	legal_basis: z.string(),
+	guarantees: z.string().optional(),
+	processing: z.string(),
+	entity: z.string().optional()
+});
+
+export const personalDataSchema = z.object({
+	...NameDescriptionMixin,
+	ref_id: z.string().optional().default(''),
+	category: z.string(),
+	retention: z.string(),
+	deletion_policy: z.string(),
+	is_sensitive: z.boolean().optional(),
+	processing: z.string()
+});
+
 export const ebiosRMSchema = z.object({
 	...NameDescriptionMixin,
 	version: z.string().optional().default('0.1'),
@@ -542,6 +601,32 @@ export const FindingsAssessmentSchema = z.object({
 	category: z.string().default('--')
 });
 
+export const IncidentSchema = z.object({
+	...NameDescriptionMixin,
+	folder: z.string(),
+	ref_id: z.string().optional(),
+	status: z.string(),
+	severity: z.number(),
+	threats: z.string().uuid().optional().array().optional(),
+	owners: z.string().uuid().optional().array().optional(),
+	assets: z.string().uuid().optional().array().optional(),
+	qualifications: z.string().uuid().optional().array().optional()
+});
+
+export const TimelineEntrySchema = z.object({
+	incident: z.string(),
+	entry: z.string(),
+	entry_type: z.string(),
+	timestamp: z
+		.union([z.literal('').transform(() => null), z.string().datetime({ local: true })])
+		.refine((val) => !val || new Date(val) <= new Date(), {
+			message: m.timestampCannotBeInTheFuture()
+		})
+		.optional(),
+	observation: z.string().optional().nullable(),
+	evidences: z.string().uuid().optional().array().optional()
+});
+
 const SCHEMA_MAP: Record<string, AnyZodObject> = {
 	folders: FolderSchema,
 	'folders-import': FolderImportSchema,
@@ -568,6 +653,13 @@ const SCHEMA_MAP: Record<string, AnyZodObject> = {
 	solutions: solutionSchema,
 	vulnerabilities: vulnerabilitySchema,
 	'filtering-labels': FilteringLabelSchema,
+	processings: processingSchema,
+	purposes: purposeSchema,
+	'personal-data': personalDataSchema,
+	'data-subjects': dataSubjectSchema,
+	'data-recipients': dataRecipientSchema,
+	'data-contractors': dataContractorSchema,
+	'data-transfers': dataTransferSchema,
 	'ebios-rm': ebiosRMSchema,
 	'feared-events': fearedEventsSchema,
 	'ro-to': roToSchema,
@@ -577,7 +669,9 @@ const SCHEMA_MAP: Record<string, AnyZodObject> = {
 	'operational-scenarios': operationalScenarioSchema,
 	'security-exceptions': SecurityExceptionSchema,
 	findings: FindingSchema,
-	'findings-assessments': FindingsAssessmentSchema
+	'findings-assessments': FindingsAssessmentSchema,
+	incidents: IncidentSchema,
+	'timeline-entries': TimelineEntrySchema
 };
 
 export const modelSchema = (model: string) => {
